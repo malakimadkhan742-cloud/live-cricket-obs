@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Cricket OBS Scoreboard Manager</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; margin: 0; padding: 32px 16px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 28px; color: #facc15; }
+    p.sub { color: #94a3b8; margin: 0 0 24px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 14px;
+    }
+    .full { grid-column: 1 / -1; }
+    button {
+      background: #dc2626; color: #fff; border: none; padding: 11px 18px;
+      border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px;
+    }
+    button:hover { background: #b91c1c; }
+    .btn-copy { background: #2563eb; }
+    .btn-copy:hover { background: #1d4ed8; }
+    .btn-preview { background: #059669; text-decoration: none; color: #fff; padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+    .btn-del { background: #475569; }
+    .match-item {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+      gap: 12px; padding: 14px 0; border-bottom: 1px solid #334155;
+    }
+    .match-item:last-child { border-bottom: none; }
+    .obs-url {
+      background: #0f172a; padding: 6px 10px; border-radius: 6px; font-family: monospace;
+      font-size: 13px; color: #38bdf8; border: 1px solid #334155; display: inline-block; margin-top: 6px;
+    }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    .msg { margin-top: 10px; font-size: 14px; color: #4ade80; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏏 Live Cricket OBS Platform</h1>
+    <p class="sub">Add or update CREX match links below to generate live 1280×720 OBS Browser Source URLs.</p>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>Admin Password</label>
+          <input type="password" id="password" placeholder="Enter admin password (default: admin123)" />
+        </div>
+        <div>
+          <label>Match URL Slug (e.g. ban-vs-sa)</label>
+          <input type="text" id="slug" placeholder="ban-vs-sa" />
+        </div>
+        <div class="full">
+          <label>Match Title</label>
+          <input type="text" id="title" placeholder="Bangladesh vs South Africa - 2nd Test" />
+        </div>
+        <div class="full">
+          <label>CREX Live Score URL</label>
+          <input type="url" id="crex_url" placeholder="https://crex.com/cricket-live-score/..." />
+        </div>
+      </div>
+      <div style="margin-top: 16px;">
+        <button onclick="saveMatch()">Generate / Update Live OBS URL</button>
+        <div id="status-msg" class="msg"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top: 0; font-size: 18px;">Active Match Overlays</h2>
+      <div id="matches-list">Loading matches...</div>
+    </div>
+  </div>
+
+  <script>
+    async function loadMatches() {
+      const res = await fetch("/api/matches");
+      const matches = await res.json();
+      const container = document.getElementById("matches-list");
+
+      if (!matches.length) {
+        container.innerHTML = "<p style='color:#94a3b8'>No matches added yet. Add one above!</p>";
+        return;
+      }
+
+      container.innerHTML = matches.map(m => {
+        const obsUrl = `${window.location.origin}/obs/${m.id}`;
+        return `
+          <div class="match-item">
+            <div>
+              <strong>${m.title}</strong> <span style="color:#facc15">(${m.score} • ${m.overs} ov)</span><br/>
+              <span class="obs-url">${obsUrl}</span>
+            </div>
+            <div class="actions">
+              <button class="btn-copy" onclick="copyUrl('${obsUrl}', this)">Copy OBS URL</button>
+              <a class="btn-preview" href="${obsUrl}" target="_blank">Preview</a>
+              <button class="btn-del" onclick="fillEdit('${m.id}', '${m.title.replace(/'/g, "\\'")}', '${m.crex_url}')">Edit</button>
+              <button class="btn-del" onclick="deleteMatch('${m.id}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function copyUrl(url, btn) {
+      navigator.clipboard.writeText(url);
+      const old = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => btn.textContent = old, 1500);
+    }
+
+    function fillEdit(id, title, url) {
+      document.getElementById("slug").value = id;
+      document.getElementById("title").value = title;
+      document.getElementById("crex_url").value = url;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function saveMatch() {
+      const password = document.getElementById("password").value;
+      const slug = document.getElementById("slug").value;
+      const title = document.getElementById("title").value;
+      const crex_url = document.getElementById("crex_url").value;
+      const msgEl = document.getElementById("status-msg");
+
+      msgEl.style.color = "#facc15";
+      msgEl.textContent = "Fetching live score & generating URL...";
+
+      const res = await fetch("/api/matches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, slug, title, crex_url })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        msgEl.style.color = "#f87171";
+        msgEl.textContent = data.error || "Failed to save match";
+        return;
+      }
+
+      msgEl.style.color = "#4ade80";
+      msgEl.textContent = `Live! Share this OBS URL: ${window.location.origin}/obs/${data.id}`;
+      loadMatches();
+    }
+
+    async function deleteMatch(id) {
+      const password = document.getElementById("password").value;
+      if (!password) {
+        alert("Enter your Admin Password at the top first to delete a match.");
+        return;
+      }
+      const res = await fetch(`/api/matches/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) loadMatches();
+      else alert("Invalid admin password");
+    }
+
+    loadMatches();
+  </script>
+</body>
+</html>
