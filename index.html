@@ -10,7 +10,422 @@
     href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0a0a0c;
+      font-family: 'Oswald', sans-serif;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .broadcast-container {
+      width: 1280px;
+      height: 720px;
+      max-width: 100vw;
+      max-height: 100vh;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 2px solid #222;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+    }
+
+    /* TOP SCOREBOARD */
+    .top-scoreboard {
+      display: grid;
+      grid-template-columns: 1fr 220px 1fr;
+      background: linear-gradient(180deg, #1b0505 0%, #2a0808 100%);
+      height: 165px;
+      z-index: 10;
+      border-bottom: 2px solid #d4af37;
+    }
+
+    .team-capsule {
+      background: linear-gradient(180deg, #c7161d 0%, #8b0c12 100%);
+      border: 2.5px solid #ffd54f;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 6px 24px 10px;
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
+    }
+
+    .left-capsule {
+      border-left: none;
+      border-radius: 0 85px 85px 0;
+    }
+
+    .right-capsule {
+      border-right: none;
+      border-radius: 85px 0 0 85px;
+    }
+
+    .team-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .capsule-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+
+    .flag-circle {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      border: 3px solid #ffd54f;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+      flex-shrink: 0;
+    }
+
+    .flag-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .score-block {
+      text-align: center;
+      flex-grow: 1;
+    }
+
+    .main-score {
+      font-size: 74px;
+      font-weight: 700;
+      line-height: 0.95;
+      text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.85);
+    }
+
+    .overs-text {
+      font-size: 25px;
+      font-weight: 700;
+      color: #ffd54f;
+      margin-top: 2px;
+      text-shadow: 1px 1px 3px #000;
+    }
+
+    .bowling-tag {
+      font-size: 56px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      flex-grow: 1;
+      text-align: center;
+      text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.85);
+    }
+
+    /* CENTER BALL EVENT */
+    .center-event {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .live-pill {
+      background: #d32f2f;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 12px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .live-pill .dot {
+      width: 7px;
+      height: 7px;
+      background: #fff;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    .big-ball-event {
+      font-size: 98px;
+      font-weight: 700;
+      color: #ffd54f;
+      line-height: 1;
+      text-shadow: 0 4px 14px rgba(0, 0, 0, 0.9);
+    }
+
+    /* INFO STRIP */
+    .info-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(90deg, #0b0b0d 0%, #1d1e24 50%, #0b0b0d 100%);
+      padding: 4px 28px;
+      font-size: 22px;
+      font-weight: 700;
+      border-bottom: 2px solid #333;
+      z-index: 10;
+    }
+
+    .info-left strong {
+      color: #ffd54f;
+    }
+
+    .divider {
+      margin: 0 12px;
+      color: #ffd54f;
+    }
+
+    .info-right {
+      color: #ffffff;
+      letter-spacing: 0.8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+    }
+
+    /* OVER TIMELINE STRIP */
+    .overs-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: rgba(12, 14, 18, 0.94);
+      padding: 6px 20px;
+      border-bottom: 2px solid #ffd54f;
+      z-index: 10;
+    }
+
+    .over-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .over-label,
+    .over-total {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffd54f;
+    }
+
+    .over-slash {
+      font-size: 24px;
+      color: #ffd54f;
+      font-weight: 700;
+    }
+
+    .balls-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .ball-box {
+      width: 30px;
+      height: 30px;
+      background: #232730;
+      border: 1.5px solid #8a94a6;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .ball-four {
+      background: #1565c0;
+      border-color: #90caf9;
+    }
+
+    .ball-six {
+      background: #2e7d32;
+      border-color: #a5d6a7;
+    }
+
+    .ball-wicket {
+      background: #c62828;
+      border-color: #ef9a9a;
+    }
+
+    .ball-pending {
+      background: #37474f;
+      font-size: 14px;
+    }
+
+    /* STADIUM BACKDROP */
+    .stadium-backdrop {
+      flex-grow: 1;
+      position: relative;
+      background: radial-gradient(ellipse at center, #388e3c 0%, #1b5e20 55%, #0d2b12 100%);
+    }
+
+    .stadium-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.04) 0px,
+          rgba(255, 255, 255, 0.04) 40px,
+          transparent 40px,
+          transparent 80px
+        ),
+        radial-gradient(circle at 50% 45%, rgba(210, 180, 120, 0.45) 0%, transparent 18%);
+    }
+
+    /* BOTTOM PLAYER CARDS */
+    .players-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      padding: 0 18px;
+      margin-top: -175px;
+      z-index: 10;
+    }
+
+    .player-card {
+      border: 2px solid #ffd54f;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.85);
+    }
+
+    .batter-card {
+      background: linear-gradient(135deg, #6e0d12 0%, #3a0608 100%);
+    }
+
+    .bowler-card {
+      background: linear-gradient(135deg, #102a5c 0%, #081533 100%);
+    }
+
+    .card-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 3px 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(255, 213, 79, 0.4);
+    }
+
+    .card-badge img {
+      width: 24px;
+      height: 15px;
+      object-fit: cover;
+      border: 1px solid #fff;
+    }
+
+    .card-main {
+      display: flex;
+      align-items: center;
+      padding: 6px 12px;
+      gap: 10px;
+    }
+
+    .avatar-box {
+      width: 82px;
+      height: 82px;
+      flex-shrink: 0;
+    }
+
+    .player-avatar {
+      width: 100%;
+      height: 100%;
+    }
+
+    .player-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 6px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .player-stats {
+      flex-grow: 1;
+      text-align: center;
+    }
+
+    .player-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+    }
+
+    .player-score {
+      font-size: 40px;
+      font-weight: 700;
+      line-height: 1.05;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .sub-stat {
+      font-size: 24px;
+      color: #ffd54f;
+    }
+
+    .bat-icon {
+      font-size: 22px;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-around;
+      background: #0c0d10;
+      padding: 4px 10px;
+      font-size: 19px;
+      font-weight: 700;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .card-footer strong {
+      color: #ffd54f;
+      margin-left: 3px;
+    }
+
+    /* LAST WICKET BAR */
+    .last-wicket-bar {
+      background: linear-gradient(90deg, #5c0a0e 0%, #1a1a1d 65%, transparent 100%);
+      padding: 3px 22px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      margin-top: 4px;
+      z-index: 10;
+    }
+  </style>
 </head>
 <body>
   <div class="broadcast-container">
@@ -23,8 +438,8 @@
             <img id="batting-flag" src="https://flagcdn.com/w160/za.png" alt="Batting Flag" />
           </div>
           <div class="score-block">
-            <div class="main-score" id="score">49/0</div>
-            <div class="overs-text" id="overs">8.2</div>
+            <div class="main-score" id="score">88/1</div>
+            <div class="overs-text" id="overs">17.0</div>
           </div>
         </div>
       </div>
@@ -48,25 +463,25 @@
     <!-- CRR / PARTNERSHIP / STATUS STRIP -->
     <section class="info-strip">
       <div class="info-left">
-        <span>CRR: <strong id="crr">5.88</strong></span>
+        <span>CRR: <strong id="crr">5.18</strong></span>
         <span class="divider">|</span>
-        <span>P'SHIP: <strong id="partnership">49 (50)</strong></span>
+        <span>P'SHIP: <strong id="partnership">39 (47)</strong></span>
       </div>
-      <div class="info-right" id="match-status">SA TRAIL BY 42 RUNS</div>
+      <div class="info-right" id="match-status">SA TRAIL BY 3 RUNS</div>
     </section>
 
     <!-- OVER TIMELINE BAR -->
     <section class="overs-strip">
       <div class="over-group">
-        <span class="over-label" id="over-prev-num">OVER 8:</span>
+        <span class="over-label" id="over-prev-num">OVER 16:</span>
         <div class="balls-row" id="over-prev-balls"></div>
-        <span class="over-total" id="over-prev-total">= 3</span>
+        <span class="over-total" id="over-prev-total">= 8</span>
       </div>
       <span class="over-slash">/</span>
       <div class="over-group">
-        <span class="over-label" id="over-curr-num">OVER 9:</span>
+        <span class="over-label" id="over-curr-num">OVER 17:</span>
         <div class="balls-row" id="over-curr-balls"></div>
-        <span class="over-total" id="over-curr-total">= 0</span>
+        <span class="over-total" id="over-curr-total">= 4</span>
       </div>
     </section>
 
@@ -87,16 +502,12 @@
           <div class="avatar-box">
             <img id="striker-img" class="player-photo hidden" alt="Striker" />
             <svg id="striker-svg" viewBox="0 0 120 120" class="player-avatar">
-              <!-- Jersey -->
               <path d="M18 120 C20 86, 100 86, 102 120 Z" fill="#f4f6f7" stroke="#006a4e" stroke-width="3"/>
               <path d="M46 88 L60 104 L74 88" fill="none" stroke="#006a4e" stroke-width="4"/>
-              <!-- Neck & Head -->
               <rect x="51" y="66" width="18" height="20" rx="6" fill="#e5b887"/>
               <ellipse cx="60" cy="46" rx="21" ry="25" fill="#f1c27d"/>
-              <!-- Hair & Beard -->
               <path d="M39 40 Q42 16 60 16 Q78 16 81 40 Q76 26 60 25 Q44 26 39 40 Z" fill="#3b281e"/>
               <path d="M41 50 Q44 71 60 72 Q76 71 79 50 Q73 62 60 63 Q47 62 41 50 Z" fill="#4a3525" opacity="0.85"/>
-              <!-- Eyes & Brows -->
               <path d="M47 41 Q51 39 55 41" stroke="#2c1e16" stroke-width="2.5" fill="none"/>
               <path d="M65 41 Q69 39 73 41" stroke="#2c1e16" stroke-width="2.5" fill="none"/>
               <circle cx="51" cy="45" r="2.2" fill="#1a1a1a"/>
@@ -105,18 +516,18 @@
             </svg>
           </div>
           <div class="player-stats">
-            <div class="player-name" id="striker-name">A. MARKRAM</div>
+            <div class="player-name" id="striker-name">Z. HAMZA</div>
             <div class="player-score">
-              <span id="striker-runs">21</span>
-              <span class="sub-stat" id="striker-balls">(22)</span>
+              <span id="striker-runs">9</span>
+              <span class="sub-stat" id="striker-balls">(27)</span>
               <span class="bat-icon">🏏</span>
             </div>
           </div>
         </div>
         <div class="card-footer">
-          <span>4s:<strong id="striker-4s">5</strong></span>
+          <span>4s:<strong id="striker-4s">0</strong></span>
           <span>6s:<strong id="striker-6s">0</strong></span>
-          <span>SR:<strong id="striker-sr">95.45</strong></span>
+          <span>SR:<strong id="striker-sr">33.33</strong></span>
         </div>
       </div>
 
@@ -130,15 +541,11 @@
           <div class="avatar-box">
             <img id="nonstriker-img" class="player-photo hidden" alt="Non-Striker" />
             <svg id="nonstriker-svg" viewBox="0 0 120 120" class="player-avatar">
-              <!-- Jersey -->
               <path d="M18 120 C20 86, 100 86, 102 120 Z" fill="#f4f6f7" stroke="#006a4e" stroke-width="3"/>
               <path d="M46 88 L60 104 L74 88" fill="none" stroke="#006a4e" stroke-width="4"/>
-              <!-- Neck & Head -->
               <rect x="51" y="66" width="18" height="20" rx="6" fill="#dfb180"/>
               <ellipse cx="60" cy="46" rx="21" ry="25" fill="#ecc08d"/>
-              <!-- Hair -->
               <path d="M39 42 Q40 15 60 15 Q80 15 81 42 Q76 25 60 24 Q44 25 39 42 Z" fill="#231a16"/>
-              <!-- Eyes & Smile -->
               <path d="M47 41 Q51 39 55 41" stroke="#231a16" stroke-width="2.5" fill="none"/>
               <path d="M65 41 Q69 39 73 41" stroke="#231a16" stroke-width="2.5" fill="none"/>
               <circle cx="51" cy="45" r="2.2" fill="#1a1a1a"/>
@@ -149,15 +556,15 @@
           <div class="player-stats">
             <div class="player-name" id="nonstriker-name">M. ACKERMAN</div>
             <div class="player-score">
-              <span id="nonstriker-runs">26</span>
-              <span class="sub-stat" id="nonstriker-balls">(28)</span>
+              <span id="nonstriker-runs">55</span>
+              <span class="sub-stat" id="nonstriker-balls">(53)</span>
             </div>
           </div>
         </div>
         <div class="card-footer">
-          <span>4s:<strong id="nonstriker-4s">4</strong></span>
+          <span>4s:<strong id="nonstriker-4s">8</strong></span>
           <span>6s:<strong id="nonstriker-6s">0</strong></span>
-          <span>SR:<strong id="nonstriker-sr">92.86</strong></span>
+          <span>SR:<strong id="nonstriker-sr">103.77</strong></span>
         </div>
       </div>
 
@@ -171,16 +578,12 @@
           <div class="avatar-box">
             <img id="bowler-img" class="player-photo hidden" alt="Bowler" />
             <svg id="bowler-svg" viewBox="0 0 120 120" class="player-avatar">
-              <!-- Jersey -->
               <path d="M18 120 C20 86, 100 86, 102 120 Z" fill="#f4f6f7" stroke="#006a4e" stroke-width="3"/>
               <path d="M46 88 L60 104 L74 88" fill="none" stroke="#d32f2f" stroke-width="4"/>
-              <!-- Neck & Head -->
               <rect x="51" y="66" width="18" height="20" rx="6" fill="#b97a45"/>
               <ellipse cx="60" cy="46" rx="21" ry="25" fill="#c98850"/>
-              <!-- Hair & Full Beard -->
               <path d="M39 40 Q42 15 60 15 Q78 15 81 40 Q75 24 60 23 Q45 24 39 40 Z" fill="#141414"/>
               <path d="M40 48 Q42 72 60 73 Q78 72 80 48 Q73 61 60 62 Q47 61 40 48 Z" fill="#181818"/>
-              <!-- Eyes & Brows -->
               <path d="M47 41 Q51 39 55 41" stroke="#111" stroke-width="2.5" fill="none"/>
               <path d="M65 41 Q69 39 73 41" stroke="#111" stroke-width="2.5" fill="none"/>
               <circle cx="51" cy="45" r="2.2" fill="#111"/>
@@ -189,15 +592,15 @@
             </svg>
           </div>
           <div class="player-stats">
-            <div class="player-name" id="bowler-name">K. AHMED</div>
+            <div class="player-name" id="bowler-name">T. ISLAM</div>
             <div class="player-score">
-              <span id="bowler-figures">0-19</span>
-              <span class="sub-stat" id="bowler-overs">(3.2)</span>
+              <span id="bowler-figures">1-24</span>
+              <span class="sub-stat" id="bowler-overs">(5.0)</span>
             </div>
           </div>
         </div>
         <div class="card-footer bowler-footer">
-          <span>Econ: <strong id="bowler-econ">5.70</strong></span>
+          <span>Econ: <strong id="bowler-econ">4.80</strong></span>
         </div>
       </div>
     </footer>
@@ -242,7 +645,7 @@
 
     async function fetchLiveScore() {
       try {
-        const res = await fetch(`match_data.json?t=${Date.now()}`);
+        const res = await fetch(`/match_data.json?t=${Date.now()}`);
         if (!res.ok) return;
         const data = await res.json();
 
@@ -269,7 +672,6 @@
         document.getElementById("over-curr-total").textContent = data.over_curr_total;
         renderBalls("over-curr-balls", data.over_curr_balls);
 
-        // Striker
         document.getElementById("striker-name").textContent = data.striker.name;
         document.getElementById("striker-runs").textContent = data.striker.runs;
         document.getElementById("striker-balls").textContent = data.striker.balls;
@@ -278,7 +680,6 @@
         document.getElementById("striker-sr").textContent = data.striker.sr;
         updatePlayerAvatar("striker-img", "striker-svg", data.striker.image);
 
-        // Non-Striker
         document.getElementById("nonstriker-name").textContent = data.non_striker.name;
         document.getElementById("nonstriker-runs").textContent = data.non_striker.runs;
         document.getElementById("nonstriker-balls").textContent = data.non_striker.balls;
@@ -287,7 +688,6 @@
         document.getElementById("nonstriker-sr").textContent = data.non_striker.sr;
         updatePlayerAvatar("nonstriker-img", "nonstriker-svg", data.non_striker.image);
 
-        // Bowler
         document.getElementById("bowler-name").textContent = data.bowler.name;
         document.getElementById("bowler-figures").textContent = data.bowler.figures;
         document.getElementById("bowler-overs").textContent = data.bowler.overs;
