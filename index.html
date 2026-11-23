@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Cricket Broadcast Scoreboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="broadcast-container">
+    <!-- TOP SCOREBOARD BANNER -->
+    <header class="top-scoreboard">
+      <div class="team-capsule left-capsule">
+        <div class="team-title" id="batting-team">SOUTH AFRICA</div>
+        <div class="capsule-body">
+          <div class="flag-circle">
+            <img id="batting-flag" src="https://flagcdn.com/w160/za.png" alt="Batting Flag" />
+          </div>
+          <div class="score-block">
+            <div class="main-score" id="score">49/0</div>
+            <div class="overs-text" id="overs">8.2</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="center-event">
+        <div class="live-pill"><span class="dot"></span> LIVE</div>
+        <div class="big-ball-event" id="last-ball">0</div>
+      </div>
+
+      <div class="team-capsule right-capsule">
+        <div class="team-title" id="bowling-team">BANGLADESH</div>
+        <div class="capsule-body right-body">
+          <div class="bowling-tag">BOWL</div>
+          <div class="flag-circle">
+            <img id="bowling-flag" src="https://flagcdn.com/w160/bd.png" alt="Bowling Flag" />
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CRR / PARTNERSHIP / STATUS STRIP -->
+    <section class="info-strip">
+      <div class="info-left">
+        <span>CRR: <strong id="crr">5.88</strong></span>
+        <span class="divider">|</span>
+        <span>P'SHIP: <strong id="partnership">49 (50)</strong></span>
+      </div>
+      <div class="info-right" id="match-status">SA TRAIL BY 42 RUNS</div>
+    </section>
+
+    <!-- OVER TIMELINE BAR -->
+    <section class="overs-strip">
+      <div class="over-group">
+        <span class="over-label" id="over-prev-num">OVER 8:</span>
+        <div class="balls-row" id="over-prev-balls"></div>
+        <span class="over-total" id="over-prev-total">= 3</span>
+      </div>
+      <span class="over-slash">/</span>
+      <div class="over-group">
+        <span class="over-label" id="over-curr-num">OVER 9:</span>
+        <div class="balls-row" id="over-curr-balls"></div>
+        <span class="over-total" id="over-curr-total">= 0</span>
+      </div>
+    </section>
+
+    <!-- STADIUM BACKGROUND -->
+    <main class="stadium-backdrop">
+      <div class="stadium-overlay"></div>
+    </main>
+
+    <!-- BOTTOM PLAYER CARDS -->
+    <footer class="players-grid">
+      <!-- Card 1: Striker -->
+      <div class="player-card batter-card">
+        <div class="card-badge">
+          <img id="striker-flag" src="https://flagcdn.com/w80/za.png" alt="" />
+          <span>BATTER</span>
+        </div>
+        <div class="card-main">
+          <div class="avatar-box">
+            <img id="striker-img" class="player-photo hidden" alt="Striker" />
+            <svg id="striker-svg" viewBox="0 0 120 120" class="player-avatar">
+              <!-- Jersey -->
+              <path d="M18 120 C20 86, 100 86, 102 120 Z" fill="#f4f6f7" stroke="#006a4e" stroke-width="3"/>
+              <path d="M46 88 L60 104 L74 88" fill="none" stroke="#006a4e" stroke-width="4"/>
+              <!-- Neck & Head -->
+              <rect x="51" y="66" width="18" height="20" rx="6" fill="#e5b887"/>
+              <ellipse cx="60" cy="46" rx="21" ry="25" fill="#f1c27d"/>
+              <!-- Hair & Beard -->
+              <path d="M39 40 Q42 16 60 16 Q78 16 81 40 Q76 26 60 25 Q44 26 39 40 Z" fill="#3b281e"/>
+              <path d="M41 50 Q44 71 60 72 Q76 71 79 50 Q73 62 60 63 Q47 62 41 50 Z" fill="#4a3525" opacity="0.85"/>
+              <!-- Eyes & Brows -->
+              <path d="M47 41 Q51 39 55 41" stroke="#2c1e16" stroke-width="2.5" fill="none"/>
+              <path d="M65 41 Q69 39 73 41" stroke="#2c1e16" stroke-width="2.5" fill="none"/>
+              <circle cx="51" cy="45" r="2.2" fill="#1a1a1a"/>
+              <circle cx="69" cy="45" r="2.2" fill="#1a1a1a"/>
+              <path d="M55 58 Q60 61 65 58" stroke="#7a3e2e" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+          <div class="player-stats">
+            <div class="player-name" id="striker-name">A. MARKRAM</div>
+            <div class="player-score">
+              <span id="striker-runs">21</span>
+              <span class="sub-stat" id="striker-balls">(22)</span>
+              <span class="bat-icon">🏏</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span>4s:<strong id="striker-4s">5</strong></span>
+          <span>6s:<strong id="striker-6s">0</strong></span>
+          <span>SR:<strong id="striker-sr">95.45</strong></span>
+        </div>
+      </div>
+
+      <!-- Card 2: Non-Striker -->
+      <div class="player-card batter-card">
+        <div class="card-badge">
+          <img id="nonstriker-flag" src="https://flagcdn.com/w80/za.png" alt="" />
+          <span>BATTER</span>
+        </div>
+        <div class="card-main">
+          <div class="avatar-box">
+            <img id="nonstriker-img" class="player-photo hidden" alt="Non-Striker" />
+            <svg id="nonstriker-svg" viewBox="0 0 120 120" class="player-avatar">
+              <!-- Jersey -->
+              <path d="M18 120 C20 86, 100 86, 102 120 Z" fill="#f4f6f7" stroke="#006a4e" stroke-width="3"/>
+              <path d="M46 88 L60 104 L74 88" fill="none" stroke="#006a4e" stroke-width="4"/>
+              <!-- Neck & Head -->
+              <rect x="51" y="66" width="18" height="20" rx="6" fill="#dfb180"/>
+              <ellipse cx="60" cy="46" rx="21" ry="25" fill="#ecc08d"/>
+              <!-- Hair -->
+              <path d="M39 42 Q40 15 60 15 Q80 15 81 42 Q76 25 60 24 Q44 25 39 42 Z" fill="#231a16"/>
+              <!-- Eyes & Smile -->
+              <path d="M47 41 Q51 39 55 41" stroke="#231a16" stroke-width="2.5" fill="none"/>
+              <path d="M65 41 Q69 39 73 41" stroke="#231a16" stroke-width="2.5" fill="none"/>
+              <circle cx="51" cy="45" r="2.2" fill="#1a1a1a"/>
+              <circle cx="69" cy="45" r="2.2" fill="#1a1a1a"/>
+              <path d="M54 57 Q60 62 66 57" stroke="#7a3e2e" stroke-width="2.2" fill="none"/>
+            </svg>
+          </div>
+          <div class="player-stats">
+            <div class="player-name" id="nonstriker-name">M. ACKERMAN</div>
+            <div class="player-score">
+              <span id="nonstriker-runs">26</span>
+              <span class="sub-stat" id="nonstriker-balls">(28)</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span>4s:<strong id="nonstriker-4s">4</strong></span>
+          <span>6s:<strong id="nonstriker-6s">0</strong></span>
+          <span>SR:<strong id="nonstriker-sr">92.86</strong></span>
+        </div>
+      </div>
+
+      <!-- Card 3: Bowler -->
+      <div class="player-card bowler-card">
+        <div class="card-badge">
+          <img id="bowler-flag" src="https://flagcdn.com/w80/bd.png" alt="" />
+          <span>BOWLER</span>
+        </div>
+        <div class="card-main">
+          <div class="avatar-box">
+            <img id="bowler-img" class="player-photo hidden" alt="Bowler" />
+            <svg id="bowler-svg" viewBox="0 0 120 120" class="player-avatar">
+              <!-- Jersey -->
+              <path d="M18 120 C20 86, 100 86, 102 120 Z" fill="#f4f6f7" stroke="#006a4e" stroke-width="3"/>
+              <path d="M46 88 L60 104 L74 88" fill="none" stroke="#d32f2f" stroke-width="4"/>
+              <!-- Neck & Head -->
+              <rect x="51" y="66" width="18" height="20" rx="6" fill="#b97a45"/>
+              <ellipse cx="60" cy="46" rx="21" ry="25" fill="#c98850"/>
+              <!-- Hair & Full Beard -->
+              <path d="M39 40 Q42 15 60 15 Q78 15 81 40 Q75 24 60 23 Q45 24 39 40 Z" fill="#141414"/>
+              <path d="M40 48 Q42 72 60 73 Q78 72 80 48 Q73 61 60 62 Q47 61 40 48 Z" fill="#181818"/>
+              <!-- Eyes & Brows -->
+              <path d="M47 41 Q51 39 55 41" stroke="#111" stroke-width="2.5" fill="none"/>
+              <path d="M65 41 Q69 39 73 41" stroke="#111" stroke-width="2.5" fill="none"/>
+              <circle cx="51" cy="45" r="2.2" fill="#111"/>
+              <circle cx="69" cy="45" r="2.2" fill="#111"/>
+              <path d="M55 58 Q60 60 65 58" stroke="#5c2c1d" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+          <div class="player-stats">
+            <div class="player-name" id="bowler-name">K. AHMED</div>
+            <div class="player-score">
+              <span id="bowler-figures">0-19</span>
+              <span class="sub-stat" id="bowler-overs">(3.2)</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bowler-footer">
+          <span>Econ: <strong id="bowler-econ">5.70</strong></span>
+        </div>
+      </div>
+    </footer>
+
+    <div class="last-wicket-bar">
+      <span id="last-wicket">BAN 1ST INN: 91/10 (33.3 OV)</span>
+    </div>
+  </div>
+
+  <script>
+    function updatePlayerAvatar(imgId, svgId, imageUrl) {
+      const imgEl = document.getElementById(imgId);
+      const svgEl = document.getElementById(svgId);
+      if (imageUrl && imageUrl.startsWith("http")) {
+        imgEl.src = imageUrl;
+        imgEl.classList.remove("hidden");
+        svgEl.classList.add("hidden");
+        imgEl.onerror = () => {
+          imgEl.classList.add("hidden");
+          svgEl.classList.remove("hidden");
+        };
+      } else {
+        imgEl.classList.add("hidden");
+        svgEl.classList.remove("hidden");
+      }
+    }
+
+    function renderBalls(containerId, balls) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      balls.forEach((val) => {
+        const box = document.createElement("div");
+        box.className = "ball-box";
+        if (val === "4") box.classList.add("ball-four");
+        else if (val === "6") box.classList.add("ball-six");
+        else if (val.toUpperCase().includes("W")) box.classList.add("ball-wicket");
+        else if (val === "•") box.classList.add("ball-pending");
+        box.textContent = val === "•" ? "⚾" : val;
+        container.appendChild(box);
+      });
+    }
+
+    async function fetchLiveScore() {
+      try {
+        const res = await fetch(`match_data.json?t=${Date.now()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        document.getElementById("batting-team").textContent = data.batting_team;
+        document.getElementById("bowling-team").textContent = data.bowling_team;
+        document.getElementById("batting-flag").src = data.batting_flag;
+        document.getElementById("bowling-flag").src = data.bowling_flag;
+        document.getElementById("striker-flag").src = data.batting_flag;
+        document.getElementById("nonstriker-flag").src = data.batting_flag;
+        document.getElementById("bowler-flag").src = data.bowling_flag;
+
+        document.getElementById("score").textContent = data.score;
+        document.getElementById("overs").textContent = data.overs;
+        document.getElementById("last-ball").textContent = data.last_ball;
+        document.getElementById("crr").textContent = data.crr;
+        document.getElementById("partnership").textContent = data.partnership;
+        document.getElementById("match-status").textContent = data.match_status;
+
+        document.getElementById("over-prev-num").textContent = data.over_prev_num;
+        document.getElementById("over-prev-total").textContent = data.over_prev_total;
+        renderBalls("over-prev-balls", data.over_prev_balls);
+
+        document.getElementById("over-curr-num").textContent = data.over_curr_num;
+        document.getElementById("over-curr-total").textContent = data.over_curr_total;
+        renderBalls("over-curr-balls", data.over_curr_balls);
+
+        // Striker
+        document.getElementById("striker-name").textContent = data.striker.name;
+        document.getElementById("striker-runs").textContent = data.striker.runs;
+        document.getElementById("striker-balls").textContent = data.striker.balls;
+        document.getElementById("striker-4s").textContent = data.striker.fours;
+        document.getElementById("striker-6s").textContent = data.striker.sixes;
+        document.getElementById("striker-sr").textContent = data.striker.sr;
+        updatePlayerAvatar("striker-img", "striker-svg", data.striker.image);
+
+        // Non-Striker
+        document.getElementById("nonstriker-name").textContent = data.non_striker.name;
+        document.getElementById("nonstriker-runs").textContent = data.non_striker.runs;
+        document.getElementById("nonstriker-balls").textContent = data.non_striker.balls;
+        document.getElementById("nonstriker-4s").textContent = data.non_striker.fours;
+        document.getElementById("nonstriker-6s").textContent = data.non_striker.sixes;
+        document.getElementById("nonstriker-sr").textContent = data.non_striker.sr;
+        updatePlayerAvatar("nonstriker-img", "nonstriker-svg", data.non_striker.image);
+
+        // Bowler
+        document.getElementById("bowler-name").textContent = data.bowler.name;
+        document.getElementById("bowler-figures").textContent = data.bowler.figures;
+        document.getElementById("bowler-overs").textContent = data.bowler.overs;
+        document.getElementById("bowler-econ").textContent = data.bowler.econ;
+        updatePlayerAvatar("bowler-img", "bowler-svg", data.bowler.image);
+
+        document.getElementById("last-wicket").textContent = data.last_wicket;
+      } catch (err) {
+        console.error("Failed to load match_data.json:", err);
+      }
+    }
+
+    fetchLiveScore();
+    setInterval(fetchLiveScore, 1000);
+  </script>
+</body>
+</html>
