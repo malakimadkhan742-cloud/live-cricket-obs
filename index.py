@@ -1,17 +1,15 @@
 import json
 import os
 import re
+import threading
 import time
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 import requests
 
-CREX_URL = os.environ.get(
-    "CREX_URL",
-    "https://crex.com/cricket-live-score/ban-vs-sa-2nd-test-bangladesh-tour-of-south-africa-2026-match-updates-10MA",
-)
-JSON_FILE = "match_data.json"
+DB_FILE = "matches.json"
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
 CACHE_TTL_SECONDS = 3
 
 HEADERS = {
@@ -24,65 +22,94 @@ HEADERS = {
 }
 
 app = Flask(__name__)
+db_lock = threading.Lock()
+_fetch_timestamps = {}
 
-_cached_data = {}
-_last_fetch_time = 0.0
 
-
-def load_seed_data():
+def load_db():
+    if not os.path.exists(DB_FILE):
+        return {}
     try:
-        with open(JSON_FILE, "r", encoding="utf-8") as f:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {
-            "batting_team": "SOUTH AFRICA",
-            "bowling_team": "BANGLADESH",
-            "batting_flag": "https://flagcdn.com/w160/za.png",
-            "bowling_flag": "https://flagcdn.com/w160/bd.png",
-            "score": "88/1",
-            "overs": "17.0",
-            "last_ball": "0",
-            "crr": "5.18",
-            "partnership": "39 (47)",
-            "match_status": "SA TRAIL BY 3 RUNS",
-            "over_prev_num": "OVER 16:",
-            "over_prev_balls": ["3", "0", "4", "1", "0", "0"],
-            "over_prev_total": "= 8",
-            "over_curr_num": "OVER 17:",
-            "over_curr_balls": ["4", "0", "0", "0", "0", "0"],
-            "over_curr_total": "= 4",
-            "striker": {
-                "name": "Z. HAMZA",
-                "runs": "9",
-                "balls": "(27)",
-                "fours": "0",
-                "sixes": "0",
-                "sr": "33.33",
-                "image": "",
-                "on_strike": True,
-            },
-            "non_striker": {
-                "name": "M. ACKERMAN",
-                "runs": "55",
-                "balls": "(53)",
-                "fours": "8",
-                "sixes": "0",
-                "sr": "103.77",
-                "image": "",
-                "on_strike": False,
-            },
-            "bowler": {
-                "name": "T. ISLAM",
-                "figures": "1-24",
-                "overs": "(5.0)",
-                "econ": "4.80",
-                "image": "",
-            },
-            "last_wicket": "BAN 1ST INN: 91/10 (33.3 OV)",
-        }
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
-def find_player_images(soup, player_names):
+def save_db(db_data):
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(db_data, f, indent=2)
+
+
+def default_match_payload(crex_url, title=""):
+    return {
+        "title": title or "Live Cricket Match",
+        "crex_url": crex_url,
+        "batting_team": "TEAM A",
+        "bowling_team": "TEAM B",
+        "batting_flag": "https://flagcdn.com/w160/za.png",
+        "bowling_flag": "https://flagcdn.com/w160/bd.png",
+        "score": "0/0",
+        "overs": "0.0",
+        "last_ball": "0",
+        "crr": "0.00",
+        "partnership": "0 (0)",
+        "match_status": "MATCH IN PROGRESS",
+        "over_prev_num": "PREV:",
+        "over_prev_balls": ["0", "0", "0", "0", "0", "0"],
+        "over_prev_total": "= 0",
+        "over_curr_num": "CURR:",
+        "over_curr_balls": ["•", "•", "•", "•", "•", "•"],
+        "over_curr_total": "= 0",
+        "striker": {
+            "name": "BATTER 1",
+            "runs": "0",
+            "balls": "(0)",
+            "fours": "0",
+            "sixes": "0",
+            "sr": "0.00",
+            "image": "",
+        },
+        "non_striker": {
+            "name": "BATTER 2",
+            "runs": "0",
+            "balls": "(0)",
+            "fours": "0",
+            "sixes": "0",
+            "sr": "0.00",
+            "image": "",
+        },
+        "bowler": {
+            "name": "BOWLER",
+            "figures": "0-0",
+            "overs": "(0.0)",
+            "econ": "0.00",
+            "image": "",
+        },
+        "last_wicket": "LIVE BROADCAST",
+    }
+
+
+TEAM_MAP = {
+    "IND": ("INDIA", "https://flagcdn.com/w160/in.png"),
+    "NZ": ("NEW ZEALAND", "https://flagcdn.com/w160/nz.png"),
+    "SA": ("SOUTH AFRICA", "https://flagcdn.com/w160/za.png"),
+    "BAN": ("BANGLADESH", "https://flagcdn.com/w160/bd.png"),
+    "PAK": ("PAKISTAN", "https://flagcdn.com/w160/pk.png"),
+    "AUS": ("AUSTRALIA", "https://flagcdn.com/w160/au.png"),
+    "ENG": ("ENGLAND", "https://flagcdn.com/w160/gb-eng.png"),
+    "SL": ("SRI LANKA", "https://flagcdn.com/w160/lk.png"),
+    "AFG": ("AFGHANISTAN", "https://flagcdn.com/w160/af.png"),
+    "WI": ("WEST INDIES", "https://flagcdn.com/w160/jm.png"),
+    "ZIM": ("ZIMBABWE", "https://flagcdn.com/w160/zw.png"),
+    "IRE": ("IRELAND", "https://flagcdn.com/w160/ie.png"),
+    "NED": ("NETHERLANDS", "https://flagcdn.com/w160/nl.png"),
+    "OMA": ("OMAN", "https://flagcdn.com/w160/om.png"),
+    "UAE": ("UAE", "https://flagcdn.com/w160/ae.png"),
+}
+
+
+def find_player_images(soup, base_url, player_names):
     found = {}
     all_imgs = soup.find_all("img")
     for name in player_names:
@@ -93,7 +120,7 @@ def find_player_images(soup, player_names):
             if not src or "flag" in src.lower() or "logo" in src.lower():
                 continue
             if last_name in alt or last_name in src.lower():
-                found[name] = urljoin(CREX_URL, src)
+                found[name] = urljoin(base_url, src)
                 break
     return found
 
@@ -101,27 +128,30 @@ def find_player_images(soup, player_names):
 def parse_crex_page(html_text, data):
     soup = BeautifulSoup(html_text, "html.parser")
     page_text = " ".join(soup.stripped_strings)
+    base_url = data.get("crex_url", "https://crex.com")
 
-    # 1. Score & Overs
+    # Detect teams from title or scoreline
+    teams_in_title = re.findall(r"\b([A-Z]{2,4})\s+vs\s+([A-Z]{2,4})\b", page_text)
+    all_codes = list(teams_in_title[0]) if teams_in_title else []
+
     score_match = re.search(
-        r"\b(SA|BAN)\s+(\d+[-/]\d+)\s*\(?(\d+\.\d+|\d+)\)?", page_text
+        r"\b([A-Z]{2,4})\s+(\d+[-/]\d+)\s*\(?(\d+\.\d+|\d+)\)?", page_text
     )
     if score_match:
-        team_code, raw_score, overs = score_match.groups()
+        bat_code, raw_score, overs = score_match.groups()
         data["score"] = raw_score.replace("-", "/")
         data["overs"] = overs
-        if team_code == "SA":
-            data["batting_team"] = "SOUTH AFRICA"
-            data["bowling_team"] = "BANGLADESH"
-            data["batting_flag"] = "https://flagcdn.com/w160/za.png"
-            data["bowling_flag"] = "https://flagcdn.com/w160/bd.png"
+        if bat_code in TEAM_MAP:
+            data["batting_team"], data["batting_flag"] = TEAM_MAP[bat_code]
         else:
-            data["batting_team"] = "BANGLADESH"
-            data["bowling_team"] = "SOUTH AFRICA"
-            data["batting_flag"] = "https://flagcdn.com/w160/bd.png"
-            data["bowling_flag"] = "https://flagcdn.com/w160/za.png"
+            data["batting_team"] = bat_code
 
-    # 2. CRR & Partnership
+        bowl_code = next((c for c in all_codes if c != bat_code), "")
+        if bowl_code in TEAM_MAP:
+            data["bowling_team"], data["bowling_flag"] = TEAM_MAP[bowl_code]
+        elif bowl_code:
+            data["bowling_team"] = bowl_code
+
     crr_match = re.search(r"CRR:\s*([\d.]+)", page_text)
     if crr_match:
         data["crr"] = crr_match.group(1)
@@ -130,16 +160,14 @@ def parse_crex_page(html_text, data):
     if pship_match:
         data["partnership"] = pship_match.group(1)
 
-    # 3. Clean Match Status (stops immediately after runs/wickets/bat/bowl)
     status_match = re.search(
-        r"\b((?:SA|BAN)\s+(?:trail by \d+ runs?|lead by \d+ runs?|need \d+ runs?(?: to win)?|opt to (?:bat|bowl)|won by [^.|]+))",
+        r"\b([A-Z]{2,4}\s+(?:trail by \d+ runs?|lead by \d+ runs?|need \d+ runs?(?: to win)?|opt to (?:bat|bowl)|won by [^.|]+))",
         page_text,
         re.IGNORECASE,
     )
     if status_match:
         data["match_status"] = status_match.group(1).strip().upper()
 
-    # 4. Over-by-over timeline
     over_blocks = re.findall(
         r"Over\s+(\d+)\s+((?:[0-6Wwdnb+•]+\s+){1,8})=\s*(\d+)", page_text
     )
@@ -165,7 +193,6 @@ def parse_crex_page(html_text, data):
         elif p_list:
             data["last_ball"] = p_list[-1]
 
-    # 5. Batters & Bowler
     batter_matches = re.findall(
         r"\b([A-Z]\s+[A-Za-z]+)\s+(\d+)\s*\((\d+)\)\s+(\d+)\s+(\d+)\s+([\d.]+)",
         page_text,
@@ -180,7 +207,7 @@ def parse_crex_page(html_text, data):
         names.extend([batter_matches[0][0], batter_matches[1][0]])
     if bowler_match:
         names.append(bowler_match.group(1))
-    player_imgs = find_player_images(soup, names)
+    player_imgs = find_player_images(soup, base_url, names)
 
     if len(batter_matches) >= 2:
         b1, b2 = batter_matches[0], batter_matches[1]
@@ -192,7 +219,6 @@ def parse_crex_page(html_text, data):
             "sixes": b1[4],
             "sr": b1[5],
             "image": player_imgs.get(b1[0], data.get("striker", {}).get("image", "")),
-            "on_strike": True,
         }
         data["non_striker"] = {
             "name": b2[0].upper(),
@@ -202,7 +228,6 @@ def parse_crex_page(html_text, data):
             "sixes": b2[4],
             "sr": b2[5],
             "image": player_imgs.get(b2[0], data.get("non_striker", {}).get("image", "")),
-            "on_strike": False,
         }
 
     if bowler_match:
@@ -215,7 +240,6 @@ def parse_crex_page(html_text, data):
             "image": player_imgs.get(bw_name, data.get("bowler", {}).get("image", "")),
         }
 
-    # 6. Last Wicket
     lw_match = re.search(
         r"Last Wkt:\s*([A-Za-z.\s]+\d+\s*\(\d+\))", page_text, re.IGNORECASE
     )
@@ -225,32 +249,114 @@ def parse_crex_page(html_text, data):
     return data
 
 
-def get_live_data():
-    global _cached_data, _last_fetch_time
-    if not _cached_data:
-        _cached_data = load_seed_data()
+def refresh_match(match_id, force=False):
+    with db_lock:
+        db = load_db()
+        if match_id not in db:
+            return None
+        match_data = db[match_id]
 
     now = time.time()
-    if now - _last_fetch_time >= CACHE_TTL_SECONDS:
-        try:
-            response = requests.get(CREX_URL, headers=HEADERS, timeout=8)
-            if response.status_code == 200:
-                _cached_data = parse_crex_page(response.text, _cached_data)
-                _last_fetch_time = now
-        except Exception as exc:
-            print(f"Fetch error: {exc}")
+    last_time = _fetch_timestamps.get(match_id, 0.0)
+    if force or (now - last_time >= CACHE_TTL_SECONDS):
+        crex_url = match_data.get("crex_url", "")
+        if crex_url:
+            try:
+                res = requests.get(crex_url, headers=HEADERS, timeout=8)
+                if res.status_code == 200:
+                    with db_lock:
+                        db = load_db()
+                        if match_id in db:
+                            db[match_id] = parse_crex_page(res.text, db[match_id])
+                            save_db(db)
+                            match_data = db[match_id]
+                            _fetch_timestamps[match_id] = now
+            except Exception as exc:
+                print(f"[{match_id}] Fetch error: {exc}")
 
-    return _cached_data
+    return match_data
 
+
+# --- PUBLIC & OBS ROUTES ---
 
 @app.route("/")
-def serve_index():
-    return send_from_directory(".", "index.html")
+def serve_admin():
+    return send_from_directory(".", "admin.html")
 
 
-@app.route("/match_data.json")
-def serve_json():
-    return jsonify(get_live_data())
+@app.route("/obs/<match_id>")
+def serve_overlay(match_id):
+    return send_from_directory(".", "overlay.html")
+
+
+@app.route("/api/match/<match_id>")
+def get_match_api(match_id):
+    data = refresh_match(match_id)
+    if not data:
+        return jsonify({"error": "Match not found"}), 404
+    return jsonify(data)
+
+
+# --- ADMIN MANAGEMENT API ---
+
+@app.route("/api/matches", methods=["GET"])
+def list_matches():
+    with db_lock:
+        db = load_db()
+    summary = [
+        {
+            "id": mid,
+            "title": info.get("title", mid),
+            "crex_url": info.get("crex_url", ""),
+            "score": info.get("score", "0/0"),
+            "overs": info.get("overs", "0.0"),
+            "status": info.get("match_status", ""),
+        }
+        for mid, info in db.items()
+    ]
+    return jsonify(summary)
+
+
+@app.route("/api/matches", methods=["POST"])
+def create_or_update_match():
+    body = request.get_json(silent=True) or {}
+    if body.get("password") != ADMIN_PASSWORD:
+        return jsonify({"error": "Invalid admin password"}), 401
+
+    raw_slug = body.get("slug", "").strip().lower()
+    slug = re.sub(r"[^a-z0-9-]+", "-", raw_slug).strip("-")
+    crex_url = body.get("crex_url", "").strip()
+    title = body.get("title", "").strip()
+
+    if not slug or not crex_url:
+        return jsonify({"error": "Match ID and CREX URL are required"}), 400
+
+    with db_lock:
+        db = load_db()
+        existing = db.get(slug, default_match_payload(crex_url, title))
+        existing["crex_url"] = crex_url
+        if title:
+            existing["title"] = title
+        db[slug] = existing
+        save_db(db)
+
+    # Immediately scrape live score so the URL is ready right away
+    refresh_match(slug, force=True)
+    return jsonify({"ok": True, "id": slug})
+
+
+@app.route("/api/matches/<match_id>", methods=["DELETE"])
+def delete_match(match_id):
+    body = request.get_json(silent=True) or {}
+    if body.get("password") != ADMIN_PASSWORD:
+        return jsonify({"error": "Invalid admin password"}), 401
+
+    with db_lock:
+        db = load_db()
+        if match_id in db:
+            del db[match_id]
+            save_db(db)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
