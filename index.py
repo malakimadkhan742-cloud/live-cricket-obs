@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import threading
 import time
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -13,7 +12,7 @@ CREX_URL = os.environ.get(
     "https://crex.com/cricket-live-score/ban-vs-sa-2nd-test-bangladesh-tour-of-south-africa-2026-match-updates-10MA",
 )
 JSON_FILE = "match_data.json"
-POLL_INTERVAL_SECONDS = 3
+CACHE_TTL_SECONDS = 3
 
 HEADERS = {
     "User-Agent": (
@@ -24,16 +23,63 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-app = Flask(__name__, static_folder=".")
-data_lock = threading.Lock()
+app = Flask(__name__)
+
+_cached_data = {}
+_last_fetch_time = 0.0
 
 
-def load_existing_data():
+def load_seed_data():
     try:
         with open(JSON_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return {}
+        return {
+            "batting_team": "SOUTH AFRICA",
+            "bowling_team": "BANGLADESH",
+            "batting_flag": "https://flagcdn.com/w160/za.png",
+            "bowling_flag": "https://flagcdn.com/w160/bd.png",
+            "score": "88/1",
+            "overs": "17.0",
+            "last_ball": "0",
+            "crr": "5.18",
+            "partnership": "39 (47)",
+            "match_status": "SA TRAIL BY 3 RUNS",
+            "over_prev_num": "OVER 16:",
+            "over_prev_balls": ["3", "0", "4", "1", "0", "0"],
+            "over_prev_total": "= 8",
+            "over_curr_num": "OVER 17:",
+            "over_curr_balls": ["4", "0", "0", "0", "0", "0"],
+            "over_curr_total": "= 4",
+            "striker": {
+                "name": "Z. HAMZA",
+                "runs": "9",
+                "balls": "(27)",
+                "fours": "0",
+                "sixes": "0",
+                "sr": "33.33",
+                "image": "",
+                "on_strike": True,
+            },
+            "non_striker": {
+                "name": "M. ACKERMAN",
+                "runs": "55",
+                "balls": "(53)",
+                "fours": "8",
+                "sixes": "0",
+                "sr": "103.77",
+                "image": "",
+                "on_strike": False,
+            },
+            "bowler": {
+                "name": "T. ISLAM",
+                "figures": "1-24",
+                "overs": "(5.0)",
+                "econ": "4.80",
+                "image": "",
+            },
+            "last_wicket": "BAN 1ST INN: 91/10 (33.3 OV)",
+        }
 
 
 def find_player_images(soup, player_names):
@@ -56,6 +102,7 @@ def parse_crex_page(html_text, data):
     soup = BeautifulSoup(html_text, "html.parser")
     page_text = " ".join(soup.stripped_strings)
 
+    # 1. Score & Overs
     score_match = re.search(
         r"\b(SA|BAN)\s+(\d+[-/]\d+)\s*\(?(\d+\.\d+|\d+)\)?", page_text
     )
@@ -74,6 +121,7 @@ def parse_crex_page(html_text, data):
             data["batting_flag"] = "https://flagcdn.com/w160/bd.png"
             data["bowling_flag"] = "https://flagcdn.com/w160/za.png"
 
+    # 2. CRR & Partnership
     crr_match = re.search(r"CRR:\s*([\d.]+)", page_text)
     if crr_match:
         data["crr"] = crr_match.group(1)
@@ -82,14 +130,16 @@ def parse_crex_page(html_text, data):
     if pship_match:
         data["partnership"] = pship_match.group(1)
 
+    # 3. Clean Match Status (stops immediately after runs/wickets/bat/bowl)
     status_match = re.search(
-        r"((?:SA|BAN)\s+(?:trail by|lead by|need|opt to)[^|.]+)",
+        r"\b((?:SA|BAN)\s+(?:trail by \d+ runs?|lead by \d+ runs?|need \d+ runs?(?: to win)?|opt to (?:bat|bowl)|won by [^.|]+))",
         page_text,
         re.IGNORECASE,
     )
     if status_match:
         data["match_status"] = status_match.group(1).strip().upper()
 
+    # 4. Over-by-over timeline
     over_blocks = re.findall(
         r"Over\s+(\d+)\s+((?:[0-6Wwdnb+•]+\s+){1,8})=\s*(\d+)", page_text
     )
@@ -115,12 +165,13 @@ def parse_crex_page(html_text, data):
         elif p_list:
             data["last_ball"] = p_list[-1]
 
+    # 5. Batters & Bowler
     batter_matches = re.findall(
-        r"([A-Z]\s+[A-Za-z]+)\s+(\d+)\s*\((\d+)\)\s+(\d+)\s+(\d+)\s+([\d.]+)",
+        r"\b([A-Z]\s+[A-Za-z]+)\s+(\d+)\s*\((\d+)\)\s+(\d+)\s+(\d+)\s+([\d.]+)",
         page_text,
     )
     bowler_match = re.search(
-        r"([A-Z]\s+[A-Za-z]+)\s+(\d+-\d+)\s+(\d+(?:\.\d+)?)\s+([\d.]+)",
+        r"\b([A-Z]\s+[A-Za-z]+)\s+(\d+-\d+)\s+(\d+(?:\.\d+)?)\s+([\d.]+)",
         page_text,
     )
 
@@ -164,30 +215,32 @@ def parse_crex_page(html_text, data):
             "image": player_imgs.get(bw_name, data.get("bowler", {}).get("image", "")),
         }
 
+    # 6. Last Wicket
+    lw_match = re.search(
+        r"Last Wkt:\s*([A-Za-z.\s]+\d+\s*\(\d+\))", page_text, re.IGNORECASE
+    )
+    if lw_match:
+        data["last_wicket"] = f"LAST WKT: {lw_match.group(1).strip().upper()}"
+
     return data
 
 
-def background_scraper():
-    last_snapshot = ""
-    while True:
+def get_live_data():
+    global _cached_data, _last_fetch_time
+    if not _cached_data:
+        _cached_data = load_seed_data()
+
+    now = time.time()
+    if now - _last_fetch_time >= CACHE_TTL_SECONDS:
         try:
-            response = requests.get(CREX_URL, headers=HEADERS, timeout=10)
+            response = requests.get(CREX_URL, headers=HEADERS, timeout=8)
             if response.status_code == 200:
-                with data_lock:
-                    current_data = load_existing_data()
-                    updated_data = parse_crex_page(response.text, current_data)
-                    serialized = json.dumps(updated_data, indent=2)
-                    if serialized != last_snapshot:
-                        with open(JSON_FILE, "w", encoding="utf-8") as f:
-                            f.write(serialized)
-                        last_snapshot = serialized
+                _cached_data = parse_crex_page(response.text, _cached_data)
+                _last_fetch_time = now
         except Exception as exc:
-            print(f"Scraper error: {exc}")
-        time.sleep(POLL_INTERVAL_SECONDS)
+            print(f"Fetch error: {exc}")
 
-
-# Start background scraper thread automatically when server boots
-threading.Thread(target=background_scraper, daemon=True).start()
+    return _cached_data
 
 
 @app.route("/")
@@ -195,15 +248,9 @@ def serve_index():
     return send_from_directory(".", "index.html")
 
 
-@app.route("/style.css")
-def serve_css():
-    return send_from_directory(".", "style.css")
-
-
 @app.route("/match_data.json")
 def serve_json():
-    with data_lock:
-        return jsonify(load_existing_data())
+    return jsonify(get_live_data())
 
 
 if __name__ == "__main__":
